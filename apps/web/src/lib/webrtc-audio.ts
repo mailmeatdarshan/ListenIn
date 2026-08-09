@@ -20,7 +20,7 @@ export function getAudioPlayerElement(): HTMLAudioElement {
       audioPlayerElement = document.createElement("audio");
       audioPlayerElement.id = "listenin-live-audio";
       audioPlayerElement.autoplay = true;
-      audioPlayerElement.playsInline = true;
+      (audioPlayerElement as any).playsInline = true;
       audioPlayerElement.muted = false;
       audioPlayerElement.style.display = "none";
       document.body.appendChild(audioPlayerElement);
@@ -33,7 +33,7 @@ export function unlockAudioPlayback(): Promise<boolean> {
   const audioEl = getAudioPlayerElement();
   if (audioEl) {
     audioEl.muted = false;
-    audioEl.playsInline = true;
+    (audioEl as any).playsInline = true;
     if (audioEl.srcObject) {
       return audioEl
         .play()
