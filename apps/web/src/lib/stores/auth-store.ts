@@ -12,6 +12,8 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   updateToken: (accessToken: string) => void;
   logout: () => void;
@@ -24,6 +26,8 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      hasHydrated: false,
+      setHasHydrated: (state) => set({ hasHydrated: state }),
       setAuth: (user, accessToken, refreshToken) => 
         set({ user, accessToken, refreshToken, isAuthenticated: true }),
       updateToken: (accessToken) => set({ accessToken }),
@@ -32,6 +36,9 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "listenin-auth",
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

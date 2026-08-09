@@ -11,7 +11,13 @@ import { Mail, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const { setAuth, isAuthenticated, hasHydrated } = useAuthStore();
+
+  React.useEffect(() => {
+    if (hasHydrated && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [hasHydrated, isAuthenticated, router]);
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

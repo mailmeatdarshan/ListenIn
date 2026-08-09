@@ -29,7 +29,7 @@ interface RoomData {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, hasHydrated, logout } = useAuthStore();
   
   const [rooms, setRooms] = useState<RoomData[]>([]);
   const [publicRooms, setPublicRooms] = useState<RoomData[]>([]);
@@ -61,14 +61,22 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    if (!hasHydrated) return;
+
     if (!isAuthenticated) {
       router.push("/login");
       return;
     }
     fetchRooms();
-  }, [isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, router]);
 
-  if (!isAuthenticated || !user) return null;
+  if (!hasHydrated || !isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-[#0d0e15] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#ff2d46] animate-spin" />
+      </div>
+    );
+  }
 
   const confirmLogout = () => {
     logout();
