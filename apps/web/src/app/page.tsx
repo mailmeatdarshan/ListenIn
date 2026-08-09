@@ -14,11 +14,15 @@ import {
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { Logo, LogoIcon } from "@/components/Logo";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 const AUDIO_START_TIME = 24; // 0:24
 const AUDIO_END_TIME = 55;   // 0:55
 
 export default function LandingPage() {
+  const { isAuthenticated, hasHydrated } = useAuthStore();
+  const isLoggedIn = hasHydrated && isAuthenticated;
+
   const [emailInput, setEmailInput] = useState("");
   const [subscribed, setSubscribed] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -105,15 +109,26 @@ export default function LandingPage() {
             </span>
           </Link>
           
-          <Link href="/login" className="hover:text-white transition-colors px-2 py-1">
-            Login
-          </Link>
-          <Link 
-            href="/register" 
-            className="bg-[#ff2d46] hover:bg-[#e11d48] text-white px-4 py-1.5 sm:px-5 sm:py-2 rounded-full font-bold transition-all text-xs sm:text-sm shadow-md shadow-red-950/50"
-          >
-            Get Started
-          </Link>
+          {isLoggedIn ? (
+            <Link 
+              href="/dashboard" 
+              className="bg-[#ff2d46] hover:bg-[#e11d48] text-white px-5 py-2 rounded-full font-bold transition-all text-xs sm:text-sm shadow-md shadow-red-950/50"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="hover:text-white transition-colors px-2 py-1">
+                Login
+              </Link>
+              <Link 
+                href="/register" 
+                className="bg-[#ff2d46] hover:bg-[#e11d48] text-white px-4 py-1.5 sm:px-5 sm:py-2 rounded-full font-bold transition-all text-xs sm:text-sm shadow-md shadow-red-950/50"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
           
           <a 
             href="https://github.com" 
@@ -146,17 +161,19 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-center lg:justify-start">
               <Link 
-                href="/register" 
+                href={isLoggedIn ? "/dashboard" : "/register"} 
                 className="w-full sm:w-auto bg-[#ff2d46] hover:bg-[#e11d48] text-white px-7 py-3 rounded-full font-bold text-sm sm:text-base text-center transition-all shadow-lg shadow-red-950/60"
               >
-                Start Party
+                {isLoggedIn ? "Go to Dashboard" : "Start Party"}
               </Link>
-              <Link 
-                href="/login" 
-                className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-black px-7 py-3 rounded-full font-bold text-sm sm:text-base text-center transition-all"
-              >
-                Join Room
-              </Link>
+              {!isLoggedIn && (
+                <Link 
+                  href="/login" 
+                  className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-black px-7 py-3 rounded-full font-bold text-sm sm:text-base text-center transition-all"
+                >
+                  Join Room
+                </Link>
+              )}
             </div>
           </div>
 

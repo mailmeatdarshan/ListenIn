@@ -1,10 +1,12 @@
 import React from "react";
 import Link from "next/link";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
   withLink?: boolean;
   className?: string;
+  href?: string;
 }
 
 export function LogoIcon({ className = "w-8 h-8" }: { className?: string }) {
@@ -22,7 +24,11 @@ export function LogoIcon({ className = "w-8 h-8" }: { className?: string }) {
   );
 }
 
-export function Logo({ size = "md", withLink = true, className = "" }: LogoProps) {
+export function Logo({ size = "md", withLink = true, className = "", href }: LogoProps) {
+  const { isAuthenticated, hasHydrated } = useAuthStore();
+
+  const targetHref = href || (hasHydrated && isAuthenticated ? "/dashboard" : "/");
+
   const iconSizes = {
     sm: "w-7 h-7",
     md: "w-9 h-9",
@@ -47,7 +53,7 @@ export function Logo({ size = "md", withLink = true, className = "" }: LogoProps
 
   if (withLink) {
     return (
-      <Link href="/" className="hover:opacity-90 transition-opacity inline-flex items-center justify-center">
+      <Link href={targetHref} className="hover:opacity-90 transition-opacity inline-flex items-center justify-center">
         {content}
       </Link>
     );
