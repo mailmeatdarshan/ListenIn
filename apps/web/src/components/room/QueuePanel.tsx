@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Music, SkipForward, Trash2, Plus, Disc, Sparkles } from "lucide-react";
+import { Music, SkipForward, Trash2, Plus, Disc, Sparkles, Play } from "lucide-react";
 
 export interface QueueItem {
   id: string;
@@ -24,6 +24,7 @@ interface QueuePanelProps {
   onOpenSpotifyModal: () => void;
   onRemoveQueueItem?: (suggestionId: string) => void;
   onPlayNextQueueTrack?: () => void;
+  onPlayTrackNow?: (track: QueueItem) => void;
 }
 
 export function QueuePanel({
@@ -32,6 +33,7 @@ export function QueuePanel({
   onOpenSpotifyModal,
   onRemoveQueueItem,
   onPlayNextQueueTrack,
+  onPlayTrackNow,
 }: QueuePanelProps) {
   const currentTrack = queue[0];
   const upcomingQueue = queue.slice(1);
@@ -55,7 +57,7 @@ export function QueuePanel({
         {/* Add Song Button */}
         <button
           onClick={onOpenSpotifyModal}
-          className="bg-[#1db954] hover:bg-[#1ed760] text-black px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-md hover:scale-105"
+          className="bg-[#ff2d46] hover:bg-[#e11d48] text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-md hover:scale-105"
         >
           <Plus size={14} />
           <span>Add Song</span>
@@ -92,13 +94,24 @@ export function QueuePanel({
 
             {/* Host Skip Control */}
             {isHost && onPlayNextQueueTrack && (
-              <button
-                onClick={onPlayNextQueueTrack}
-                className="mt-3 w-full bg-[#1db954]/20 hover:bg-[#1db954]/30 border border-[#1db954]/40 text-[#1db954] py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-              >
-                <SkipForward size={14} />
-                Play Next Track Now
-              </button>
+              <div className="mt-3 flex gap-2">
+                {onPlayTrackNow && (
+                  <button
+                    onClick={() => onPlayTrackNow(currentTrack)}
+                    className="flex-1 bg-[#ff2d46] hover:bg-[#e11d48] text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-md"
+                  >
+                    <Play size={14} />
+                    Play Now
+                  </button>
+                )}
+                <button
+                  onClick={onPlayNextQueueTrack}
+                  className="flex-1 bg-[#27272a] hover:bg-[#3f3f46] border border-[#3f3f46] text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <SkipForward size={14} />
+                  Skip to Next
+                </button>
+              </div>
             )}
           </div>
         ) : null}
@@ -129,15 +142,26 @@ export function QueuePanel({
                     </div>
                   </div>
 
-                  {isHost && onRemoveQueueItem && (
-                    <button
-                      onClick={() => onRemoveQueueItem(item.id)}
-                      className="text-zinc-500 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                      title="Remove from Queue"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isHost && onPlayTrackNow && (
+                      <button
+                        onClick={() => onPlayTrackNow(item)}
+                        className="text-zinc-400 hover:text-[#ff2d46] p-1.5 rounded-full hover:bg-[#ff2d46]/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Play Now"
+                      >
+                        <Play size={14} />
+                      </button>
+                    )}
+                    {isHost && onRemoveQueueItem && (
+                      <button
+                        onClick={() => onRemoveQueueItem(item.id)}
+                        className="text-zinc-500 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove from Queue"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

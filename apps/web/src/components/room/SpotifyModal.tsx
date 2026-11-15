@@ -14,12 +14,13 @@ interface SpotifyTrack {
   coverUrl: string;
   spotifyUrl: string;
   durationMs: number;
+  audioUrl?: string;
 }
 
 interface SpotifyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddTrackToQueue: (track: { title: string; artist: string; coverUrl: string; sourceUrl: string }) => void;
+  onAddTrackToQueue: (track: { title: string; artist: string; coverUrl: string; sourceUrl: string; audioUrl?: string; duration?: number }) => void;
 }
 
 export function SpotifyModal({ isOpen, onClose, onAddTrackToQueue }: SpotifyModalProps) {
@@ -74,6 +75,8 @@ export function SpotifyModal({ isOpen, onClose, onAddTrackToQueue }: SpotifyModa
       artist: track.artist,
       coverUrl: track.coverUrl,
       sourceUrl: track.spotifyUrl || "",
+      audioUrl: track.audioUrl,
+      duration: Math.round(track.durationMs / 1000),
     });
 
     setAddedTrackIds((prev) => new Set(prev).add(track.id));

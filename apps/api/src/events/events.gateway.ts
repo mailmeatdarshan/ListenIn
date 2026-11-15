@@ -27,6 +27,17 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Track room relay state & host socket id per room
   private roomRelayState: Map<string, { isRelaying: boolean; hostSocketId: string | null; hostId: string | null }> = new Map();
 
+  private roomPlaybackState: Map<string, {
+    title: string;
+    artist: string;
+    coverUrl: string;
+    audioUrl: string;
+    duration: number;
+    startedAt: number;
+    isPlaying: boolean;
+    seekPosition: number;
+  }> = new Map();
+
   constructor(
     private authService: AuthService,
     private presenceService: PresenceService,
@@ -112,6 +123,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     } else {
       client.emit('relay:status', { isRelaying: false });
+    }
+
+    // Send current music playback state to newly joined member
+    const playbackState = this.roomPlaybackState.get(roomId);
+    if (playbackState && playbackState.isPlaying) {
+      const elapsed = (Date.now() - playbackState.startedAt) / 1000;
+      client.emit('music:playing', {
+        ...playbackState,
+        seekPosition: Math.min(elapsed, playbackState.duration),
+      });
+    } else if (playbackState && !playbackState.isPlaying) {
+      client.emit('music:playing', {
+        ...playbackState,
+      });
     }
   }
 
@@ -259,15 +284,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('queue:add')
   async handleQueueAdd(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { roomId: string; title: string; artist?: string; coverUrl?: string; sourceUrl?: string },
+    @MessageBody() data: { roomId: string; title: string; artist?: string; coverUrl?: string; sourceUrl?: string; audioUrl?: string; duration?: number },
   ) {
     if (!client.data.user || !data?.roomId || !data?.title) return;
 
-    // Resolve audio stream URL if not provided
-    let audioUrl = '';
-    try {
-      audioUrl = await this.spotifyService.resolveAudioStream(data.title, data.artist || '');
-    } catch (e) {}
+    // Use pre-resolved audio stream URL or resolve from JioSaavn
+    let audioUrl = data.audioUrl || '';
+    let duration = data.duration || 180;
+    if (!audioUrl) {
+      try {
+        const stream = await this.spotifyService.resolveAudioStreamWithDetails(data.title, data.artist || '');
+        audioUrl = stream.audioUrl;
+        duration = stream.duration;
+      } catch (e) {}
+    }
 
     const item = await this.queueService.addSuggestion({
       roomId: data.roomId,
@@ -277,6 +307,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       coverUrl: data.coverUrl || '',
       audioUrl,
       sourceUrl: data.sourceUrl || '',
+      duration,
     });
 
     const pending = await this.queueService.getPendingSuggestions(data.roomId);
@@ -314,21 +345,130 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Resolve audio URL if missing
     let audioUrl = currentTrack.audioUrl;
+    let duration = currentTrack.duration || 180;
     if (!audioUrl) {
-      audioUrl = await this.spotifyService.resolveAudioStream(currentTrack.title, currentTrack.artist || '');
+      const res = await this.spotifyService.resolveAudioStreamWithDetails(currentTrack.title, currentTrack.artist || '');
+      audioUrl = res.audioUrl;
+      duration = res.duration;
     }
 
     const updatedPending = await this.queueService.getPendingSuggestions(data.roomId);
     this.server.to(data.roomId).emit('queue:updated', updatedPending);
 
-    // Broadcast track play event to all room members
-    this.server.to(data.roomId).emit('track:play_synced', {
-      id: currentTrack.id,
+    const playbackState = {
       title: currentTrack.title,
-      artist: currentTrack.artist || 'Spotify Queue Track',
+      artist: currentTrack.artist || 'Unknown Artist',
       coverUrl: currentTrack.coverUrl || '',
       audioUrl: audioUrl,
+      duration: duration,
       startedAt: Date.now(),
+      isPlaying: true,
+      seekPosition: 0,
+    };
+    this.roomPlaybackState.set(data.roomId, playbackState);
+
+    // Broadcast track play event to all room members
+    this.server.to(data.roomId).emit('music:playing', playbackState);
+  }
+
+  @SubscribeMessage('music:play')
+  async handleMusicPlay(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { roomId: string; title: string; artist?: string; coverUrl?: string; audioUrl?: string; duration?: number },
+  ) {
+    if (!client.data.user || !data?.roomId || !data?.title) return;
+
+    let audioUrl = data.audioUrl || '';
+    let duration = data.duration || 180;
+
+    if (!audioUrl) {
+      try {
+        const result = await this.spotifyService.resolveAudioStreamWithDetails(data.title, data.artist || '');
+        audioUrl = result.audioUrl;
+        duration = result.duration;
+      } catch (e) {
+        this.server.to(client.id).emit('music:error', { message: 'Failed to resolve audio stream' });
+        return;
+      }
+    }
+
+    if (!audioUrl) {
+      this.server.to(client.id).emit('music:error', { message: 'No audio stream found for this track' });
+      return;
+    }
+
+    const playbackState = {
+      title: data.title,
+      artist: data.artist || 'Unknown Artist',
+      coverUrl: data.coverUrl || '',
+      audioUrl,
+      duration,
+      startedAt: Date.now(),
+      isPlaying: true,
+      seekPosition: 0,
+    };
+
+    this.roomPlaybackState.set(data.roomId, playbackState);
+
+    this.server.to(data.roomId).emit('music:playing', playbackState);
+  }
+
+  @SubscribeMessage('music:pause')
+  handleMusicPause(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { roomId: string; currentTime: number },
+  ) {
+    if (!client.data.user || !data?.roomId) return;
+
+    const state = this.roomPlaybackState.get(data.roomId);
+    if (state) {
+      state.isPlaying = false;
+      state.seekPosition = data.currentTime || 0;
+      this.roomPlaybackState.set(data.roomId, state);
+    }
+
+    this.server.to(data.roomId).emit('music:paused', {
+      currentTime: data.currentTime || 0,
+    });
+  }
+
+  @SubscribeMessage('music:resume')
+  handleMusicResume(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { roomId: string; currentTime: number },
+  ) {
+    if (!client.data.user || !data?.roomId) return;
+
+    const state = this.roomPlaybackState.get(data.roomId);
+    if (state) {
+      state.isPlaying = true;
+      state.startedAt = Date.now() - ((data.currentTime || 0) * 1000);
+      state.seekPosition = data.currentTime || 0;
+      this.roomPlaybackState.set(data.roomId, state);
+    }
+
+    this.server.to(data.roomId).emit('music:resumed', {
+      currentTime: data.currentTime || 0,
+      startedAt: state?.startedAt || Date.now(),
+    });
+  }
+
+  @SubscribeMessage('music:seek')
+  handleMusicSeek(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { roomId: string; seekTo: number },
+  ) {
+    if (!client.data.user || !data?.roomId) return;
+
+    const state = this.roomPlaybackState.get(data.roomId);
+    if (state) {
+      state.seekPosition = data.seekTo || 0;
+      state.startedAt = Date.now() - ((data.seekTo || 0) * 1000);
+      this.roomPlaybackState.set(data.roomId, state);
+    }
+
+    this.server.to(data.roomId).emit('music:seeked', {
+      seekTo: data.seekTo || 0,
     });
   }
 

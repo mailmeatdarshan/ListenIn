@@ -22,6 +22,23 @@ export class SpotifyController {
     return { audioUrl };
   }
 
+  @Post('play')
+  @UseGuards(AuthGuard)
+  async playTrack(
+    @Body('title') title: string,
+    @Body('artist') artist: string,
+    @Body('coverUrl') coverUrl: string,
+  ) {
+    const result = await this.spotifyService.resolveAudioStreamWithDetails(title, artist || '');
+    return {
+      title,
+      artist: artist || 'Unknown Artist',
+      coverUrl: coverUrl || '',
+      audioUrl: result.audioUrl,
+      duration: result.duration,
+    };
+  }
+
   @Get('auth-url')
   @UseGuards(AuthGuard)
   getAuthUrl(@Query('redirectUri') redirectUri: string) {

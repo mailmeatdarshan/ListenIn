@@ -15,7 +15,8 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     if (hasHydrated && isAuthenticated) {
-      router.push("/dashboard");
+      const redirectUrl = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
+      router.push(redirectUrl || "/dashboard");
     }
   }, [hasHydrated, isAuthenticated, router]);
   
@@ -49,7 +50,8 @@ export default function LoginPage() {
       );
       
       toast.success(`Welcome back, ${userProfile.username}!`);
-      router.push("/dashboard");
+      const redirectUrl = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
+      router.push(redirectUrl || "/dashboard");
     } catch (err: any) {
       const msg = err.message || "Invalid credentials or login failed";
       setError(msg);
